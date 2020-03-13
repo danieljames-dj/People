@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">People</string>
+    <string name="full_list_title">Full Contacts</string>
+    <string name="filtered_list_title">Filtered Contacts</string>
+</resources>
