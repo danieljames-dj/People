@@ -5,7 +5,7 @@ import java.util.ArrayList;
 public class Contact {
 
     public String id, rawContactId, displayName, homeCountry, homeRegion, homeCity, workCountry, workRegion, workCity;
-    public ArrayList<String> labels = new ArrayList<String>();
+    public ArrayList<Integer> placeId = new ArrayList<>(), labelId = new ArrayList<>();
 
     public Contact() {}
 
@@ -19,6 +19,11 @@ public class Contact {
         this.workCountry = contact.workCountry;
         this.workRegion = contact.workRegion;
         this.workCity = contact.workCity;
-        this.labels = contact.labels;
+        for (Integer placeId: contact.placeId) {
+            this.placeId.add(placeId);
+        }
+        for (Integer labelId: contact.labelId) {
+            this.labelId.add(labelId);
+        }
     }
 }

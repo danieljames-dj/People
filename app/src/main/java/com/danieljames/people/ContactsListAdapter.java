@@ -2,6 +2,7 @@ package com.danieljames.people;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.util.Log;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
@@ -15,10 +16,12 @@ import com.danieljames.people.model.ContactList;
 public class ContactsListAdapter extends BaseAdapter {
 
     LayoutInflater inflater;
+    Activity activity;
     public SparseBooleanArray items = new SparseBooleanArray();
 
     public ContactsListAdapter(Activity activity) {
         inflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        this.activity = activity;
     }
 
     @Override
@@ -43,15 +46,17 @@ public class ContactsListAdapter extends BaseAdapter {
             view = inflater.inflate(R.layout.contacts_list_row, null);
         }
         if (items.get(position) == true) {
-            view.setBackgroundColor(parent.getResources().getColor(R.color.selected));
+            view.setBackgroundResource(R.color.selected);
         } else {
-            view.setBackgroundColor(parent.getResources().getColor(R.color.white));
+            TypedArray array = activity.getTheme().obtainStyledAttributes(new int[] {
+                    android.R.attr.colorBackground,
+                    android.R.attr.textColorPrimary,
+            });
+            int backgroundColor = array.getColor(0, 0xFF00FF);
+            array.recycle();
+            view.setBackgroundColor(backgroundColor);
         }
-        if (ContactList.contactList.getElement(position) == null) {
-            Log.d("test", "null " + position);
-        }
-        String displayName = ContactList.contactList.getElement(position).displayName;
-        TextView keyTextView = (TextView) view.findViewById(R.id.contact_name);
+        TextView keyTextView = view.findViewById(R.id.contact_name);
         keyTextView.setText(ContactList.contactList.getElement(position).displayName);
         return view;
     }

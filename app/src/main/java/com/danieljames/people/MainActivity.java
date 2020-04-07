@@ -17,6 +17,7 @@ import android.view.View;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import com.danieljames.people.edit.EditContact;
 import com.danieljames.people.filter.FilterContact;
@@ -27,8 +28,6 @@ import java.util.ArrayList;
 public class MainActivity extends AppCompatActivity {
 
     String[] permissions = {Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS};
-    private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 1;
-    private static final int MY_PERMISSIONS_REQUEST_WRITE_CONTACTS = 2;
 
     private boolean hasPermissions() {
         for (String permission: permissions) {
@@ -43,9 +42,7 @@ public class MainActivity extends AppCompatActivity {
         if (!hasPermissions()) {
             for (String permission: permissions) {
                 if (ActivityCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(this,
-                            permissions,
-                            MY_PERMISSIONS_REQUEST_READ_CONTACTS);
+                    ActivityCompat.requestPermissions(this, permissions,0);
                 }
             }
         } else {
@@ -125,11 +122,6 @@ public class MainActivity extends AppCompatActivity {
         getPermissions();
     }
 
-    private void openFilters() {
-        Intent intent = new Intent(this, FilterContact.class);
-        startActivity(intent);
-    }
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
@@ -139,8 +131,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.filter_contacts:
-                openFilters();
+            case R.id.sort_filter:
+                Intent intent = new Intent(this, FilterContact.class);
+                startActivity(intent);
         }
         return super.onOptionsItemSelected(item);
     }
@@ -150,6 +143,17 @@ public class MainActivity extends AppCompatActivity {
         if (hasPermissions()) {
             ContactList.contactList.gotPermission();
             ContactList.contactList.refresh(this);
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (ContactList.contactInterface.hasActiveFilters()) {
+            ContactList.contactInterface.resetFilter();
+            ContactList.contactList.refreshFilter();
+            Toast.makeText(this, "Filter Reset", Toast.LENGTH_SHORT).show();
+        } else {
+            super.onBackPressed();
         }
     }
 }

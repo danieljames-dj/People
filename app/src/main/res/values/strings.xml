@@ -2,4 +2,7 @@
     <string name="app_name">People</string>
     <string name="full_list_title">Full Contacts</string>
     <string name="filtered_list_title">Filtered Contacts</string>
+    <string name="sort_filter_title">Sort &amp; Filter</string>
+    <string name="filter_places_title">Places</string>
+    <string name="filter_labels_title">Labels</string>
 </resources>

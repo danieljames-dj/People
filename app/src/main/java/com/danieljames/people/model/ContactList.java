@@ -12,29 +12,57 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.danieljames.people.ContactsListAdapter;
+import com.danieljames.people.R;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Objects;
 
-public class ContactList {
+public class ContactList implements ContactInterface {
 
+    public static ContactInterface contactInterface;
     public static ContactList contactList;
     public ContactsListAdapter adapter;
     Boolean hasPermission = false;
 
-    public HashMap<String, Contact> contacts = new HashMap<String, Contact>();
+    public HashMap<String, Contact> contacts = new HashMap<>();
     public String[] originalKeys = new String[0];
     public String[] keys = new String[0];
-
-    public String[] places = new String[0];
-    public int placeFilter = -1;
-
     public String[] groupsUsed = new String[0];
-    public HashMap<String, String> groupNames = new HashMap<String, String>();
-    public int groupFilter = -1;
+    private Filter[] filters;
 
     public ContactList() {
+        ContactList.contactInterface = this;
+        this.filters = new Filter[2];
+        for (int i = 0; i < this.filters.length; i++) {
+            this.filters[i] = new Filter();
+        }
+        this.filters[0].title = R.string.filter_places_title;
+        this.filters[1].title = R.string.filter_labels_title;
+    }
+
+    @Override
+    public Filter[] getFilters() {
+        return filters;
+    }
+
+    @Override
+    public boolean hasActiveFilters() {
+        for (int i = 0; i < filters.length; i++) {
+            for (boolean value: filters[i].selected) {
+                if (value) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void resetFilter() {
+        for (Filter filter: this.filters) {
+            filter.resetFilter();
+        }
     }
 
     void updateView(Activity activity) {
@@ -49,7 +77,7 @@ public class ContactList {
         mainHandler.post(runnable);
     }
 
-    String getPlace(String country, String region, String city) {
+    private String getPlace(String country, String region, String city) {
         String place = "";
         if (city != null) {
             place += city;
@@ -70,17 +98,33 @@ public class ContactList {
     }
 
     public void refreshFilter() {
-        ArrayList<String> keysList = new ArrayList<String>();
+        ArrayList<String> keysList = new ArrayList<>();
+        Integer[] placeFilters = this.filters[0].getActiveFilters(), labelFilters = this.filters[1].getActiveFilters();
         for (int i = 0; i < originalKeys.length; i++) {
             Contact contact = contactList.contacts.get(originalKeys[i]);
-            if (placeFilter != -1) {
-                if (!Objects.equals(places[placeFilter], getPlace(contact.homeCountry, contact.homeRegion, contact.homeCity)) &&
-                        !Objects.equals(places[placeFilter], getPlace(contact.workCountry, contact.workRegion, contact.workCity))) {
+            if (placeFilters.length > 0) {
+                boolean present = false;
+                for (int placeId: contact.placeId) {
+                    for (int j = 0; j < placeFilters.length; j++) {
+                        if (placeFilters[j].equals(placeId)) {
+                            present = true;
+                        }
+                    }
+                }
+                if (!present) {
                     continue;
                 }
             }
-            if (groupFilter != -1) {
-                if (!contact.labels.contains(groupsUsed[groupFilter])) {
+            if (labelFilters.length > 0) {
+                boolean present = false;
+                for (int labelId: contact.labelId) {
+                    for (int j = 0; j < labelFilters.length; j++) {
+                        if (labelFilters[j].equals(labelId)) {
+                            present = true;
+                        }
+                    }
+                }
+                if (!present) {
                     continue;
                 }
             }
@@ -92,10 +136,12 @@ public class ContactList {
 
     void fetchList(final Activity activity) {
         final ContentResolver contentResolver = activity.getContentResolver();
+        final ContactList contactList = this;
         new Thread(new Runnable() {
             @Override
             public void run() {
                 int keyIndex = 0;
+                Filter placeFilter = contactList.filters[0], labelFilter = contactList.filters[1];
                 contacts.clear();
                 Cursor cursor;
                 cursor = contentResolver.query(ContactsContract.Contacts.CONTENT_URI,null, null, null, ContactsContract.Contacts.DISPLAY_NAME + " ASC");
@@ -111,7 +157,6 @@ public class ContactList {
                     } while (cursor.moveToNext());
                 }
                 cursor = contentResolver.query(ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_URI,null, null, null, null);
-                ArrayList<String> placeSet = new ArrayList<String>();
                 if (cursor != null && cursor.moveToFirst()) {
                     do {
                         String contactId = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.CONTACT_ID));
@@ -120,23 +165,15 @@ public class ContactList {
                             contact.homeCountry = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.COUNTRY));
                             contact.homeRegion = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.REGION));
                             contact.homeCity = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.CITY));
-                            String place = getPlace(contact.homeCountry, contact.homeRegion, contact.homeCity);
-                            if (!placeSet.contains(place)) {
-                                placeSet.add(place);
-                            }
                         } else if (cursor.getInt(cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.TYPE)) == ContactsContract.CommonDataKinds.StructuredPostal.TYPE_WORK) {
                             contact.workCountry = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.COUNTRY));
                             contact.workRegion = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.REGION));
                             contact.workCity = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.CITY));
-                            String place = getPlace(contact.workCountry, contact.workRegion, contact.workCity);
-                            if (!placeSet.contains(place)) {
-                                placeSet.add(place);
-                            }
                         }
+                        setPlaceIds(contact);
                         contacts.put(contactId, contact);
                     } while (cursor.moveToNext());
                 }
-                places = placeSet.toArray(new String[placeSet.size()]);
 //                cursor = contentResolver.query(ContactsContract.CommonDataKinds.Email.CONTENT_URI,null, null, null, null);
 //                if (cursor != null && cursor.moveToFirst()) {
 //                    do {
@@ -147,12 +184,6 @@ public class ContactList {
 //                        contacts.put(contactId, contact);
 //                    } while (cursor.moveToNext());
 //                }
-                cursor = contentResolver.query(ContactsContract.Groups.CONTENT_URI,null, null, null, null);
-                if (cursor != null && cursor.moveToFirst()) {
-                    do {
-                        groupNames.put(cursor.getString(19), cursor.getString(9));
-                    } while (cursor.moveToNext());
-                }
                 cursor = contentResolver.query(ContactsContract.Data.CONTENT_URI,null, ContactsContract.Data.MIMETYPE + " = ?", new String[]{ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE}, null);
                 if (cursor != null && cursor.moveToFirst()) {
                     HashMap<String, Boolean> groupsUsedBool = new HashMap<String, Boolean>();
@@ -162,17 +193,37 @@ public class ContactList {
                         String label = cursor.getString(cursor.getColumnIndex(ContactsContract.Data.DATA1));
                         if (label != null) {
                             groupsUsedBool.put(label, true);
-                            if (contact.labels.indexOf(label) == -1) {
-                                contact.labels.add(label);
-                            }
+                            contact.labelId.add(labelFilter.getIndex(label));
                         }
                         contacts.put(contactId, contact);
                     } while (cursor.moveToNext());
                     groupsUsed = groupsUsedBool.keySet().toArray(new String[groupsUsedBool.keySet().size()]);
                 }
+                cursor = contentResolver.query(ContactsContract.Groups.CONTENT_URI,null, null, null, null);
+                if (cursor != null && cursor.moveToFirst()) {
+                    do {
+                        int index = labelFilter.options.indexOf(cursor.getString(19));
+                        String value = cursor.getString(9);
+                        if (index >= 0) {
+                            labelFilter.options.set(index, value);
+                        }
+                    } while (cursor.moveToNext());
+                }
+                labelFilter.tempSelectedCount = 0;
                 updateView(activity);
             }
         }).start();
+    }
+
+    private void setPlaceIds(Contact contact) {
+        if (contact.homeCity != null || contact.homeRegion != null || contact.homeCountry != null) {
+            String place = getPlace(contact.homeCountry, contact.homeRegion, contact.homeCity);
+            contact.placeId.add(this.filters[0].getIndex(place));
+        }
+        if (contact.workCity != null || contact.workRegion != null || contact.workCountry != null) {
+            String place = getPlace(contact.workCountry, contact.workRegion, contact.workCity);
+            contact.placeId.add(this.filters[0].getIndex(place));
+        }
     }
 
     public void gotPermission() {
@@ -204,11 +255,13 @@ public class ContactList {
                 !Objects.equals(originalContact.workRegion, newContact.workRegion) ||
                 !Objects.equals(originalContact.workCountry, newContact.workCountry);
         if (homeChanged || workChanged) {
+            newContact.placeId.clear();
+            setPlaceIds(newContact);
             Cursor cursor;
             String contactId = originalContact.id;
             String selection = ContactsContract.Data.CONTACT_ID + " = ? AND " + ContactsContract.Data.MIMETYPE + " = ? AND " + ContactsContract.CommonDataKinds.StructuredPostal.TYPE + " = ?";
             String[] selectionArgs = new String[]{contactId, ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE, null};
-            ArrayList<Integer> placeTypes = new ArrayList<Integer>();
+            ArrayList<Integer> placeTypes = new ArrayList<>();
             if (homeChanged) {
                 placeTypes.add(ContactsContract.CommonDataKinds.StructuredPostal.TYPE_HOME);
             }
@@ -285,7 +338,7 @@ public class ContactList {
 
     public void saveContact(Activity activity, Contact[] contacts) {
         final ContentResolver contentResolver = activity.getContentResolver();
-        ArrayList<ContentProviderOperation> ops = new ArrayList<ContentProviderOperation>();
+        ArrayList<ContentProviderOperation> ops = new ArrayList<>();
         for (int i = 0; i < contacts.length; i++) {
             Contact newContact = contacts[i];
             Contact originalContact = this.contacts.get(contacts[i].id);

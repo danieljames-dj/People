@@ -6,6 +6,6 @@
         android:orderInCategory="100"
         android:showAsAction="ifRoom|withText"
         android:title="Edit"
-        android:icon="@android:drawable/ic_menu_delete"
+        android:icon="@android:drawable/ic_menu_edit"
         tools:ignore="AppCompatResource" />
 </menu>
